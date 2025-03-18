@@ -1,0 +1,2 @@
+base = {workspace = xinge_personalProjectGold; };
+packages = { };

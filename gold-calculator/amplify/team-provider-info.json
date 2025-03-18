@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-goldcalculator-dev-3c510-authRole",
+      "UnauthRoleArn": "arn:aws:iam::975050007182:role/amplify-goldcalculator-dev-3c510-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::975050007182:role/amplify-goldcalculator-dev-3c510-authRole",
+      "Region": "us-east-2",
+      "DeploymentBucketName": "amplify-goldcalculator-dev-3c510-deployment",
+      "UnauthRoleName": "amplify-goldcalculator-dev-3c510-unauthRole",
+      "StackName": "amplify-goldcalculator-dev-3c510",
+      "StackId": "arn:aws:cloudformation:us-east-2:975050007182:stack/amplify-goldcalculator-dev-3c510/8c19a670-fdf9-11ef-8831-0281048559e3",
+      "AmplifyAppId": "d3v1a30fmxoq0u"
+    },
+    "categories": {
+      "hosting": {
+        "amplifyhosting": {
+          "appId": "d3v1a30fmxoq0u",
+          "type": "manual"
+        }
+      }
+    }
+  }
+}
