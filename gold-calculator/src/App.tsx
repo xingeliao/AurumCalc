@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import SimpleGLSLBackground from "./SimpleGLSLBackground";
+import EngravedText from "./EngravedText.tsx";
 
 
 const API_URL = "https://r1dwp1ddgg.execute-api.us-east-2.amazonaws.com/";
@@ -16,14 +17,7 @@ interface GoldEntry {
 
 const App: React.FC = () => {
     // Add body background color
-    useEffect(() => {
-        document.body.style.backgroundColor = "#e0f2f1";
 
-        // Cleanup when component unmounts
-        return () => {
-            document.body.style.backgroundColor = "";
-        };
-    }, []);
     const [goldPrice, setGoldPrice] = useState<number | null>(null);
     // Initialize with 5 empty entries
     const [entries, setEntries] = useState<GoldEntry[]>(
@@ -104,119 +98,125 @@ const App: React.FC = () => {
     };
 
     return (
-        <div style={{
-            maxWidth: "800px",
-            margin: "30px auto",
-            padding: "20px",
-            fontFamily: "Arial, sans-serif",
-            backgroundColor: "#f5f5f5",
-            borderRadius: "10px",
-            boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
-        }}>
-            <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Gold Price Calculator</h1>
+        <SimpleGLSLBackground>
             <div style={{
-                padding: "10px",
-                marginBottom: "20px",
-                backgroundColor: "#f8f8f8",
-                borderRadius: "5px",
-                textAlign: "center"
+                maxWidth: "800px",
+                margin: "30px auto",
+                padding: "20px",
+                fontFamily: "Arial, sans-serif",
+                backgroundColor: "rgba(245, 245, 245, 0.8)", // 增加透明度，让GLSL背景部分可见
+                borderRadius: "10px",
+                boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
             }}>
-                <h3>Current 24K Gold Price: {goldPrice ? `$${goldPrice.toFixed(2)}/g` : "Loading..."}</h3>
-            </div>
+                <EngravedText
+                    text="Gold Price Calculator"
+                    initialAngle={250}
+                    showControls={true} // 可以设为true以允许用户调整光照角度
+                />
+                <div style={{
+                    padding: "10px",
+                    marginBottom: "20px",
+                    backgroundColor: "rgba(248, 248, 248, 0.9)",
+                    borderRadius: "5px",
+                    textAlign: "center"
+                }}>
+                    <h3>Current 24K Gold Price: {goldPrice ? `$${goldPrice.toFixed(2)}/g` : "Loading..."}</h3>
+                </div>
 
-            <div style={{ marginBottom: "20px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                    <tr>
-                        <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>#</th>
-                        <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Weight (g)</th>
-                        <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Total Amount ($)</th>
-                        <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Price per Gram</th>
-                        <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Commission %</th>
-                        <th style={{ padding: "8px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {entries.map((entry) => (
-                        <tr key={entry.id} style={{ borderBottom: "1px solid #eee" }}>
-                            <td style={{ padding: "8px" }}>{entry.id}</td>
-                            <td style={{ padding: "8px" }}>
-                                <input
-                                    type="number"
-                                    value={entry.weight}
-                                    onChange={(e) => updateEntry(entry.id, "weight", e.target.value)}
-                                    style={{ width: "80px", padding: "6px", borderRadius: "3px", border: "1px solid #ddd" }}
-                                />
-                            </td>
-                            <td style={{ padding: "8px" }}>
-                                <input
-                                    type="number"
-                                    value={entry.totalAmount}
-                                    onChange={(e) => updateEntry(entry.id, "totalAmount", e.target.value)}
-                                    style={{ width: "80px", padding: "6px", borderRadius: "3px", border: "1px solid #ddd" }}
-                                />
-                            </td>
-                            <td style={{ padding: "8px" }}>
-                                {entry.pricePerGram ? `$${entry.pricePerGram.toFixed(2)}` : "-"}
-                            </td>
-                            <td style={{ padding: "8px" }}>
-                                {entry.commissionRate ? `${entry.commissionRate.toFixed(2)}%` : "-"}
-                            </td>
-                            <td style={{ padding: "8px", textAlign: "center" }}>
-                                <button
-                                    onClick={() => removeEntry(entry.id)}
-                                    style={{
-                                        backgroundColor: "#ff4d4d",
-                                        color: "white",
-                                        border: "none",
-                                        padding: "4px 8px",
-                                        borderRadius: "3px",
-                                        cursor: "pointer",
-                                        fontSize: "12px"
-                                    }}
-                                >
-                                    Remove
-                                </button>
-                            </td>
+                <div style={{ marginBottom: "20px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                        <tr>
+                            <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>#</th>
+                            <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Weight (g)</th>
+                            <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Total Amount ($)</th>
+                            <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Price per Gram</th>
+                            <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Commission %</th>
+                            <th style={{ padding: "8px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Action</th>
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                        {entries.map((entry) => (
+                            <tr key={entry.id} style={{ borderBottom: "1px solid #eee" }}>
+                                <td style={{ padding: "8px" }}>{entry.id}</td>
+                                <td style={{ padding: "8px" }}>
+                                    <input
+                                        type="number"
+                                        value={entry.weight}
+                                        onChange={(e) => updateEntry(entry.id, "weight", e.target.value)}
+                                        style={{ width: "80px", padding: "6px", borderRadius: "3px", border: "1px solid #ddd" }}
+                                    />
+                                </td>
+                                <td style={{ padding: "8px" }}>
+                                    <input
+                                        type="number"
+                                        value={entry.totalAmount}
+                                        onChange={(e) => updateEntry(entry.id, "totalAmount", e.target.value)}
+                                        style={{ width: "80px", padding: "6px", borderRadius: "3px", border: "1px solid #ddd" }}
+                                    />
+                                </td>
+                                <td style={{ padding: "8px" }}>
+                                    {entry.pricePerGram ? `$${entry.pricePerGram.toFixed(2)}` : "-"}
+                                </td>
+                                <td style={{ padding: "8px" }}>
+                                    {entry.commissionRate ? `${entry.commissionRate.toFixed(2)}%` : "-"}
+                                </td>
+                                <td style={{ padding: "8px", textAlign: "center" }}>
+                                    <button
+                                        onClick={() => removeEntry(entry.id)}
+                                        style={{
+                                            backgroundColor: "#ff4d4d",
+                                            color: "white",
+                                            border: "none",
+                                            padding: "4px 8px",
+                                            borderRadius: "3px",
+                                            cursor: "pointer",
+                                            fontSize: "12px"
+                                        }}
+                                    >
+                                        Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
 
-            <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
-                <button
-                    onClick={addNewEntry}
-                    style={{
-                        backgroundColor: "#2196F3",
-                        color: "white",
-                        border: "none",
-                        padding: "10px 20px",
-                        borderRadius: "3px",
-                        cursor: "pointer"
-                    }}
-                >
-                    Add New Entry
-                </button>
-            </div>
+                <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+                    <button
+                        onClick={addNewEntry}
+                        style={{
+                            backgroundColor: "#2196F3",
+                            color: "white",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: "3px",
+                            cursor: "pointer"
+                        }}
+                    >
+                        Add New Entry
+                    </button>
+                </div>
 
-            <div style={{
-                marginTop: "30px",
-                padding: "15px",
-                backgroundColor: "#e6f7ff",
-                borderRadius: "5px",
-                border: "1px solid #91d5ff"
-            }}>
-                <h3 style={{ margin: "0 0 10px 0" }}>Commission Rate Formula</h3>
-                <p style={{ margin: "5px 0" }}>
-                    Commission Rate = ((Price per Gram - Current Gold Price) / Current Gold Price) × 100%
-                </p>
-                <p style={{ margin: "5px 0", fontStyle: "italic" }}>
-                    Example: If Price per Gram = $100 and Current Gold Price = $92.76, then<br/>
-                    Commission Rate = ((100 - 92.76) / 92.76) × 100% = 7.8%
-                </p>
+                <div style={{
+                    marginTop: "30px",
+                    padding: "15px",
+                    backgroundColor: "rgba(230, 247, 255, 0.9)",
+                    borderRadius: "5px",
+                    border: "1px solid #91d5ff"
+                }}>
+                    <h3 style={{ margin: "0 0 10px 0" }}>Commission Rate Formula</h3>
+                    <p style={{ margin: "5px 0" }}>
+                        Commission Rate = ((Price per Gram - Current Gold Price) / Current Gold Price) × 100%
+                    </p>
+                    <p style={{ margin: "5px 0", fontStyle: "italic" }}>
+                        Example: If Price per Gram = $100 and Current Gold Price = $92.76, then<br/>
+                        Commission Rate = ((100 - 92.76) / 92.76) × 100% = 7.8%
+                    </p>
+                </div>
             </div>
-        </div>
+        </SimpleGLSLBackground>
     );
 };
 

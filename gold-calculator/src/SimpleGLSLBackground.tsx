@@ -32,6 +32,7 @@ interface SimpleGLSLBackgroundProps {
 
 const SimpleGLSLBackground: React.FC<SimpleGLSLBackgroundProps> = ({ children }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // @ts-ignore
     const requestRef = useRef<number>();
     const startTimeRef = useRef<number>(Date.now());
 
