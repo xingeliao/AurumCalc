@@ -1,28 +1,141 @@
 // SimpleGLSLBackground.tsx
 import React, { useRef, useEffect } from "react";
+import { Canvas } from "glsl-canvas-js";
 
-// 简单的片段着色器代码
+// 片段着色器代码（与原来相同）
 const fragmentShaderSource = `
-precision highp float;
-uniform float time;
+#ifdef GL_ES
+precision mediump float;
+#endif
+
 uniform vec2 resolution;
-void main( void ) {
-	vec2 position = ( gl_FragCoord.xy / resolution.xy );
-	float color = 0.0;
-	color += sin( position.x * cos( time / 15.0 ) * 80.0 ) + cos( position.y * cos( time / 15.0 ) * 10.0 );
-	color += sin( position.y * sin( time / 10.0 ) * 40.0 ) + cos( position.x * sin( time / 25.0 ) * 40.0 );
-	color += sin( position.x * sin( time / 5.0 ) * 10.0 ) + sin( position.y * sin( time / 35.0 ) * 80.0 );
-	color *= sin( time / 10.0 ) * 0.5;
-	gl_FragColor = vec4( vec3( color, color * 0.5, sin( color + time / 3.0 ) * 0.75 ), 1.0 );
+uniform vec3 gyroscope;  // Gyroscope: x = pitch, y = yaw, z = roll
+uniform sampler2D noise;  // Tiling noise texture
+uniform vec3 orientation;
+uniform vec3 gravity;
+uniform vec3 magnetic;
+uniform vec3 rotationVector;
+uniform samplerCube noisecubep2;
+
+
+uniform vec2 cameraAddent;
+uniform mat2 cameraOrientation;
+uniform sampler2D cameraFront;
+
+
+
+vec3 goldColor = 0.8*normalize(vec3(1.0, 0.55, 0.1));
+
+
+
+//const float margin = 100.0;   // Distancia desde los bordes de la pantalla
+//const float borderSize = 50.0; // Grosor del borde con gradiente
+
+
+// Spherical environment mapping
+vec3 getReflection(vec3 normal) {
+    normal = normalize(normal);
+    vec2 uv = normal.xy * 0.5 + 0.5;  // Convert to UV space
+    return texture2D(noise, uv).rgb;
 }
-`;
 
-// 顶点着色器代码
-const vertexShaderSource = `
-attribute vec4 aVertexPosition;
+// Beveled ingot shape
+float ingotShape(vec2 uv) {
+    uv = (uv - 0.3) * 2.0; // Centered
+    float edge = 0.6 - length(uv) * 0.8; // Bevel softness
+    return smoothstep(0.0, 0.05, edge);
+}
 
-void main(void) {
-  gl_Position = aVertexPosition;
+float getborder(float margin, float borderSize, bool middle){
+\t vec2 uvborder = gl_FragCoord.xy / resolution.xy;
+   vec2 aspect = vec2(resolution.x / resolution.y, 1.0);
+
+    // Calcular los límites del rectángulo
+    vec2 minBox = margin / resolution;
+    vec2 maxBox = 1.0 - minBox;
+    float border = borderSize / resolution.x; // Mantener grosor uniforme
+
+    // Distancia a los bordes
+    float distLeft   = smoothstep(minBox.x, minBox.x + border, uvborder.x);
+    float distRight  = smoothstep(maxBox.x, maxBox.x - border, uvborder.x);
+    float distBottom = smoothstep(minBox.y, minBox.y + border, uvborder.y);
+    float distTop    = smoothstep(maxBox.y, maxBox.y - border, uvborder.y);
+
+    // Combinar bordes para formar el marco con gradiente
+    float edgeX = distLeft * (1.0 - distRight) + distRight * (1.0 - distLeft);
+    float edgeY = distBottom * (1.0 - distTop) + distTop * (1.0 - distBottom);
+    border = max(edgeX, edgeY);
+    if (middle==true){
+       border = clamp(1.-abs(2.*(border-.5)),0.,1.);
+       return border;
+    } else {
+       border = clamp(1.-abs(1.*(border)),0.,1.);
+       return border;
+    }
+\t}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / resolution.xy;
+    uv = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0); // Keep proportions
+
+    // Simulated normal with gyroscope influence
+    vec3 normal = normalize(vec3(uv, 1.0));
+
+    //edgessss
+    vec2 edges = 2. * vec2(length(uv.x), length(uv.y));
+   // edges *=  vec2(resolution.x / resolution.y, 1.0);
+    edges = (vec2(1.5, 7.0)*(1. - edges));
+    edges = clamp(edges, 0., 1.);
+    edges = 1. - edges;
+    //edges = edges*edges;
+    smoothstep(0.0, 1.0, edges);
+    edges *= sign(uv - 0.);
+
+    //normal.xy += gravity.xy * 0.5;
+    normal.xy += gravity.xy * -.15;  // Pan reflection with gyro
+    normal.xy += edges * 1.5;
+    normal.xy += 0.05* texture2D(noise, (vec2(abs(edges.y), abs(-edges.x)) * 0.5+uv) * vec2(.0,55.)).rr;
+    normal.xy += 0.05* texture2D(noise, uv * 1.5).rr;
+
+    // Get reflection from noise texture
+    vec3 reflection = getReflection(reflect(vec3(0, 0, 1), normal));
+
+    reflection = getReflection(reflect(vec3(0, 0, 1), normal));
+    //reflection*= reflection*1.5;
+
+    // Bevel shading
+    float bevel = clamp(15.*abs(length(edges)),0.,1.);
+    //float border = clamp(1.-(abs(1.-(40.*(1.-max(abs(uv.x -.8), abs(uv.y -.55)))))),0.,1.);
+    // border = clamp(1.-(abs(1.-(40.(1.-max(abs(5.5*abs(1.(uv.x -.0))), abs(uv.y -.55)))))),0.,1.);
+
+   float border = getborder (100.,50., true);
+
+    vec3 color = mix(goldColor * 0.5, goldColor * 0.6, bevel+(border*border*5.* 4.*(reflection-.4))) * reflection * 5.;
+
+
+    vec2 uvcam = gl_FragCoord.xy / resolution.xy;
+\t  uvcam = vec2(1. - uvcam.x, uvcam.y);
+\t  vec2 st = cameraAddent + uvcam * cameraOrientation;
+\t  st += vec2(abs(edges.x), -edges.y) * 0.5;
+\t  st += 0.01* texture2D(noise, uv * 1.5).rr;
+\t  st += -0.02* texture2D(noise, (vec2(abs(edges.y), abs(-edges.x)) * 0.5+uv) * vec2(.0,55.)).rr;
+    vec3 camcol = texture2D(cameraFront, st).rgb;
+    //camcol *= camcol;
+    camcol *= 1.5;
+    color = mix(color, color*camcol, 0.0);
+    //color = vec3(edges, 0.);
+    //color = vec3(border, .0, .0);
+
+    color = mix(color, vec3(1.,1.,1.),0.75*clamp(length(color)*length(color)*length(color)*0.1,0.,1.));
+
+    float dark = getborder(0.,100., false);
+    color*= 1.-(.75*(1.-dark)*(1.-dark));
+    color += vec3(0.,.05,0.);
+
+    gl_FragColor = vec4(color, 1.0);
+    //gl_FragColor = vec4(edges, 0.0, 1.0);
+    //gl_FragColor = vec4(texture2D(noise, uv).rgb, 1.0); // 纯红色，测试vec4错误
+
 }
 `;
 
@@ -32,183 +145,88 @@ interface SimpleGLSLBackgroundProps {
 
 const SimpleGLSLBackground: React.FC<SimpleGLSLBackgroundProps> = ({ children }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    // @ts-ignore
-    const requestRef = useRef<number>();
-    const startTimeRef = useRef<number>(Date.now());
+    const glslCanvasRef = useRef<any>(null);
 
-    // 初始化WebGL
-    const initGL = (canvas: HTMLCanvasElement) => {
-        try {
-            const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-            if (!gl) throw new Error("WebGL不支持");
-            return gl as WebGLRenderingContext;
-        } catch (e) {
-            console.error("WebGL初始化错误:", e);
-            return null;
-        }
-    };
-
-    // 编译着色器
-    const compileShader = (
-        gl: WebGLRenderingContext,
-        source: string,
-        type: number
-    ) => {
-        const shader = gl.createShader(type);
-        if (!shader) {
-            console.error("无法创建着色器对象");
-            return null;
-        }
-
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.error("着色器编译错误:", gl.getShaderInfoLog(shader));
-            gl.deleteShader(shader);
-            return null;
-        }
-
-        return shader;
-    };
-
-    // 创建着色器程序
-    const createProgram = (
-        gl: WebGLRenderingContext,
-        vertexShader: WebGLShader,
-        fragmentShader: WebGLShader
-    ) => {
-        const program = gl.createProgram();
-        if (!program) {
-            console.error("无法创建程序对象");
-            return null;
-        }
-
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error("程序链接错误:", gl.getProgramInfoLog(program));
-            return null;
-        }
-
-        return program;
-    };
-
-    // 初始化缓冲区
-    const initBuffers = (gl: WebGLRenderingContext) => {
-        const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-        // 创建一个覆盖整个画布的矩形
-        const positions = [
-            -1.0, -1.0,  // 左下
-            1.0, -1.0,  // 右下
-            -1.0,  1.0,  // 左上
-            1.0,  1.0,  // 右上
-        ];
-
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-        return {
-            position: positionBuffer,
-        };
-    };
-
-    // 渲染场景
-    const drawScene = (
-        gl: WebGLRenderingContext,
-        program: WebGLProgram,
-        buffers: any
-    ) => {
-        // 设置清除颜色并清除
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        // 设置顶点位置属性
-        const vertexPosition = gl.getAttribLocation(program, "aVertexPosition");
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-        gl.vertexAttribPointer(vertexPosition, 2, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(vertexPosition);
-
-        // 获取时间
-        const now = Date.now();
-        const elapsedTime = (now - startTimeRef.current) / 1000.0;
-
-        // 设置uniform变量
-        const timeLocation = gl.getUniformLocation(program, "time");
-        gl.uniform1f(timeLocation, elapsedTime);
-
-        const resolutionLocation = gl.getUniformLocation(program, "resolution");
-        gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
-
-        // 使用着色器程序
-        gl.useProgram(program);
-
-        // 绘制
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    };
-
-    // 主要初始化和渲染循环
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        // 调整canvas尺寸
+        // 设置初始canvas尺寸
+        const canvas = canvasRef.current;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 调整canvas尺寸的函数
         const resizeCanvas = () => {
             if (!canvasRef.current) return;
 
-            const canvas = canvasRef.current;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
 
-            if (gl) {
-                gl.viewport(0, 0, canvas.width, canvas.height);
+            // 如果GlslCanvas已经初始化，更新其分辨率
+            if (glslCanvasRef.current) {
+                glslCanvasRef.current.setUniform("resolution", window.innerWidth, window.innerHeight);
             }
         };
 
-        // 初始化WebGL
-        const gl = initGL(canvasRef.current);
-        if (!gl) return;
+        try {
+            // 初始化GlslCanvas
+            const options = {
+                fragmentString: fragmentShaderSource,
+                alpha: true,
+                antialias: true,
+                onError: (error: any) => console.error("GLSL错误:", error)
+            };
+            const sandbox = new Canvas(canvasRef.current, options);
+            glslCanvasRef.current = sandbox;
 
-        // 编译着色器
-        const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
-        const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
-        if (!vertexShader || !fragmentShader) return;
+            sandbox.setUniform("resolution", window.innerWidth, window.innerHeight);
 
-        // 创建程序
-        const program = createProgram(gl, vertexShader, fragmentShader);
-        if (!program) return;
+            // **加载 noise 纹理**
+            const noiseTexture = new Image();
+            noiseTexture.src = "/textures/noise.jpeg";
+            noiseTexture.onload = () => {
+                glslCanvasRef.current.setUniform("noise", noiseTexture);
+                console.log("Noise 纹理加载成功");
+            };
+            noiseTexture.onerror = () => console.error("Noise 纹理加载失败");
 
-        // 初始化缓冲区
-        const buffers = initBuffers(gl);
+            sandbox.setUniform("noise", noiseTexture);
+            sandbox.setUniform("noiseTextureType", 0); // 0 代表 2D 纹理
 
-        // 设置画布尺寸
-        resizeCanvas();
+            // 强制开始渲染
+            sandbox.play();
+            console.log("GlslCanvas 初始化成功");
+            console.log("Canvas尺寸:", canvasRef.current.width, "x", canvasRef.current.height);
+            console.log("是否支持WebGL:", !!canvasRef.current.getContext('webgl') || !!canvasRef.current.getContext('experimental-webgl'));
+
+        } catch (error) {
+            console.error("GlslCanvas 初始化错误:", error);
+        }
+
+        // 添加窗口大小变化监听器
         window.addEventListener("resize", resizeCanvas);
 
-        // 动画循环
-        const animate = () => {
-            drawScene(gl, program, buffers);
-            requestRef.current = requestAnimationFrame(animate);
-        };
 
-        // 开始动画
-        requestRef.current = requestAnimationFrame(animate);
+        let startTime = Date.now();
+
+        const update = () => {
+            if (glslCanvasRef.current) {
+                let elapsed = (Date.now() - startTime) / 1000; // 计算运行的时间（秒）
+                glslCanvasRef.current.setUniform("time", elapsed);
+                requestAnimationFrame(update);
+            }
+        };
+        update();
 
         // 清理函数
         return () => {
             window.removeEventListener("resize", resizeCanvas);
 
-            if (requestRef.current) {
-                cancelAnimationFrame(requestRef.current);
+            // 停止渲染
+            if (glslCanvasRef.current) {
+                glslCanvasRef.current.pause();
             }
-
-            if (gl) {
-                gl.deleteProgram(program);
-                gl.deleteShader(vertexShader);
-                gl.deleteShader(fragmentShader);
-            }
+            glslCanvasRef.current = null;
         };
     }, []);
 
